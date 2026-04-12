@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>沉浸式翻譯筆記本</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="bg-layer bg-a" aria-hidden="true"></div>
+    <div class="bg-layer bg-b" aria-hidden="true"></div>
+
+    <header class="header">
+      <div class="header-topline">
+        <span class="status-dot"></span>
+        <span class="status-text">即時收集模式</span>
+      </div>
+      <div class="header-main">
+        <div class="header-icon">📖</div>
+        <div class="header-text">
+          <h1 class="header-title">翻譯筆記本</h1>
+          <p class="header-sub">Immersive Translate Notebook</p>
+        </div>
+        <div class="header-count">
+          <span id="total-count">0</span>
+          <span class="count-label">總筆數</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="toolbar" aria-label="資料操作">
+      <div class="actions-bar">
+        <button id="btn-extract" class="btn btn-primary" title="手動掃描目前頁面的翻譯">
+          <span class="btn-icon">◉</span>
+          <span class="btn-text">立即抓取</span>
+        </button>
+        <button id="btn-export" class="btn btn-secondary" title="匯出為 JSON 檔案">
+          <span class="btn-icon">⇣</span>
+          <span class="btn-text">匯出 JSON</span>
+        </button>
+        <button id="btn-clear" class="btn btn-danger" title="清除所有資料">
+          <span class="btn-icon">×</span>
+          <span class="btn-text">清除</span>
+        </button>
+      </div>
+      <div id="status-bar" class="status-bar hidden"></div>
+      <div class="search-bar">
+        <label for="search-input" class="search-icon">⌕</label>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="搜尋原文或譯文..."
+          autocomplete="off"
+        />
+      </div>
+      <div class="filter-row">
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="all">全部</button>
+          <button class="filter-tab" data-filter="web">網頁</button>
+          <button class="filter-tab" data-filter="video">影片</button>
+        </div>
+        <select id="source-select" class="source-select" title="依照網站來源過濾">
+          <option value="all">所有來源</option>
+        </select>
+        <div class="filter-meta">
+          <span id="active-filter" class="filter-meta-label">全部</span>
+          <span id="visible-count" class="filter-meta-count">0</span>
+        </div>
+      </div>
+      <div class="micro-hint">快捷鍵 `/` 搜尋・卡片右下可快速複製</div>
+    </section>
+
+    <main id="pairs-container" class="pairs-container">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">✦</div>
+        <p>尚無翻譯記錄</p>
+        <p class="empty-hint">開啟沉浸式翻譯並瀏覽任意頁面<br />翻譯內容會自動收進筆記本</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
