@@ -115,6 +115,7 @@ function getHostLabel(url) {
 function getFilterLabel(filter) {
   if (filter === 'video') return '影片';
   if (filter === 'web') return '網頁';
+  if (filter === 'favorite') return '⭐ 筆記本';
   return '全部';
 }
 
@@ -161,7 +162,8 @@ function renderPairs(options = {}) {
     const matchSearch = !query || p.original?.toLowerCase().includes(query) || p.translation?.toLowerCase().includes(query);
     // 舊資料沒有 type 都視為 web (向前相容)
     const pType = p.type || 'web';
-    const matchFilter = currentFilter === 'all' || pType === currentFilter;
+    const matchFilter = currentFilter === 'all' || 
+                        (currentFilter === 'favorite' ? !!p.isFavorite : pType === currentFilter);
     const pSource = p.title || getHostLabel(p.url);
     const matchSource = selectedSource === 'all' || pSource === selectedSource;
     
@@ -206,6 +208,9 @@ function renderPairs(options = {}) {
           </span>
           <span class="pair-meta-time">${formatTime(pair.timestamp)}</span>
           <div class="pair-actions">
+            <button class="pair-action-btn fav-btn ${pair.isFavorite ? 'active' : ''}" title="加入/移除筆記本" data-index="${index}">
+              ${pair.isFavorite ? '⭐ 已收藏' : '➕ 收藏'}
+            </button>
             <button class="pair-action-btn" data-action="copy" data-field="translation" data-index="${index}" title="複製譯文">複製譯文</button>
             <button class="pair-action-btn subtle" data-action="copy" data-field="original" data-index="${index}" title="複製原文">原文</button>
           </div>
@@ -252,6 +257,13 @@ async function loadAndRender() {
 }
 
 // ─── 按鈕事件 ─────────────────────────────────────────────────────────────────
+
+const btnOpenNotebook = document.getElementById('btn-open-notebook');
+if (btnOpenNotebook) {
+  btnOpenNotebook.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('notebook.html') });
+  });
+}
 
 /** 手動觸發抓取（發送訊息給 content script） */
 btnExtract.addEventListener('click', async () => {
@@ -315,6 +327,42 @@ searchInput.addEventListener('input', renderPairs);
 pairsContainer.addEventListener('click', async event => {
   const btn = event.target.closest('.pair-action-btn');
   if (!btn) return;
+
+  if (btn.classList.contains('fav-btn')) {
+    const index = Number(btn.dataset.index);
+    const targetPair = renderedPairs[index];
+    if (!targetPair) return;
+
+    const url = targetPair.url || '';
+    const original = targetPair.original || '';
+
+    // 樂觀預先更新按鈕樣式（UX 回饋）
+    const wasFavorite = targetPair.isFavorite;
+    targetPair.isFavorite = !wasFavorite;
+    btn.classList.toggle('active', targetPair.isFavorite);
+    btn.textContent = targetPair.isFavorite ? '⭐ 已收藏' : '➕ 收藏';
+
+    chrome.runtime.sendMessage({ type: 'TOGGLE_FAVORITE', url, original }, response => {
+      if (chrome.runtime.lastError || !response?.success) {
+        showStatus('⚠️ 收藏失敗: ' + (chrome.runtime.lastError?.message || response?.error || '未知錯誤'), 'error');
+        // 復原狀態
+        targetPair.isFavorite = wasFavorite;
+        btn.classList.toggle('active', wasFavorite);
+        btn.textContent = wasFavorite ? '⭐ 已收藏' : '➕ 收藏';
+        return;
+      }
+      
+      // 本地同步更新狀態
+      const pairObj = allPairs.find(p => p.url === url && p.original === original);
+      if (pairObj) pairObj.isFavorite = response.isFavorite;
+      
+      if (currentFilter === 'favorite' && !response.isFavorite) {
+        btn.closest('.pair-card').style.opacity = '0.4';
+        setTimeout(() => renderPairs({ animateNew: false }), 200);
+      }
+    });
+    return;
+  }
 
   const action = btn.dataset.action;
   const field = btn.dataset.field;

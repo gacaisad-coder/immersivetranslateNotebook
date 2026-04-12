@@ -110,6 +110,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  // ── 切換收藏狀態（來自 Popup）
+  if (message.type === 'TOGGLE_FAVORITE') {
+    loadPairs().then(pairs => {
+      const pair = pairs.find(p => (p.url || '') === message.url && (p.original || '') === message.original);
+      if (pair) {
+        pair.isFavorite = !pair.isFavorite; // 反轉狀態
+        return savePairs(pairs).then(() => pair.isFavorite);
+      }
+      throw new Error('找不到該筆翻譯');
+    })
+    .then((isFav) => sendResponse({ success: true, isFavorite: isFav }))
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
 });
 
 console.log('[IT Notebook BG] Service Worker 已啟動');

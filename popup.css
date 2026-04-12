@@ -572,6 +572,12 @@ body {
   color: #aec2de;
 }
 
+.pair-action-btn.active {
+  background: rgba(255, 198, 112, 0.2);
+  border-color: rgba(255, 198, 112, 0.6);
+  color: #ffde99;
+}
+
 .pair-type-badge {
   border-radius: 999px;
   padding: 2px 8px;

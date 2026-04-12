@@ -40,7 +40,11 @@
         </button>
         <button id="btn-export" class="btn btn-secondary" title="匯出為 JSON 檔案">
           <span class="btn-icon">⇣</span>
-          <span class="btn-text">匯出 JSON</span>
+          <span class="btn-text">匯出</span>
+        </button>
+        <button id="btn-open-notebook" class="btn btn-secondary" title="獨立分頁筆記本">
+          <span class="btn-icon">🌌</span>
+          <span class="btn-text">獨立筆記本</span>
         </button>
         <button id="btn-clear" class="btn btn-danger" title="清除所有資料">
           <span class="btn-icon">×</span>
@@ -63,6 +67,7 @@
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="web">網頁</button>
           <button class="filter-tab" data-filter="video">影片</button>
+          <button class="filter-tab" data-filter="favorite">⭐ 筆記本</button>
         </div>
         <select id="source-select" class="source-select" title="依照網站來源過濾">
           <option value="all">所有來源</option>
