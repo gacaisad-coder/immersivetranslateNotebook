@@ -1,133 +1,132 @@
-# 沉浸式翻譯筆記本 (Immersive Translate Notebook)
+# Immersive Translate Notebook
 
-> 一個 Chrome Extension（Manifest V3），專門捕捉「沉浸式翻譯」在網頁上產生的雙語對照內容，並儲存到本地 IndexedDB / chrome.storage。
+Chrome Extension（Manifest V3），用來擷取沉浸式翻譯在網頁與影片字幕上的雙語內容，並提供：
+- Popup 快速檢索 / 收藏 / 匯出
+- 獨立分頁 Notebook（收藏清單 + AI 深度解析）
 
 ---
 
-## 📁 專案結構
+## 功能總覽
 
-```
+### 1) 自動擷取雙語內容
+- 網頁翻譯：透過 `.immersive-translate-target-wrapper` 擷取原文與譯文。
+- 影片字幕：支援一般字幕容器與 Shadow DOM 字幕視窗（例如 YouTube 類場景）。
+- 即時監聽：`MutationObserver` + 防抖，持續收集新字幕/新翻譯。
+
+### 2) Popup（快速操作）
+- 即時列表：顯示所有已收集翻譯對。
+- 搜尋與過濾：關鍵字、來源、類型（網頁/影片/收藏）。
+- 一鍵收藏：加入或移除 Notebook。
+- 一鍵複製：複製原文或譯文。
+- 匯出 / 清除：匯出 JSON、清空資料。
+- 進場動畫：新字幕進來時卡片會有緩和進場動畫。
+
+### 3) Notebook（獨立頁）
+- 僅顯示收藏項目（`isFavorite = true`）。
+- 大畫面閱讀模式，適合複習與長時間整理。
+- AI 深度文法解析（彈窗）：
+  - 支援 Google Gemini / OpenAI
+  - 驗證 API Key 後自動拉取模型清單
+  - 可指定輸出語言（繁中 / 簡中 / English / 日本語 / 한국어）
+
+---
+
+## 專案結構
+
+```text
 immersivetranslateNotebook/
 ├── manifest.json       # Extension 設定（MV3）
-├── content.js          # Content Script：DOM 抓取核心 + MutationObserver
-├── background.js       # Service Worker：儲存管理與訊息路由
-├── popup.html          # Extension Popup UI
-├── popup.css           # 深色主題樣式
-├── popup.js            # Popup 互動邏輯
+├── content.js          # 內容擷取：網頁翻譯 + 影片字幕 + Shadow DOM 監聽
+├── background.js       # Service Worker：儲存、查詢、收藏切換、匯出
+├── popup.html
+├── popup.css
+├── popup.js            # Popup 互動（搜尋/過濾/收藏/複製/匯出）
+├── notebook.html
+├── notebook.css
+├── notebook.js         # Notebook 互動（收藏清單 + AI 設定/呼叫）
 └── icons/
-    ├── icon16.png
-    ├── icon48.png
-    └── icon128.png
 ```
 
 ---
 
-## 🧠 架構解析
+## 安裝方式
 
-### 沉浸式翻譯的 DOM 特徵
-
-沉浸式翻譯以**非破壞性**方式注入翻譯，主要標記：
-
-| 特徵 | 說明 |
-|------|------|
-| `<font class="immersive-translate-target-wrapper">` | **主要識別點**：所有譯文都包在這個元素裡 |
-| `data-immersive-translate-walked` | 標記已翻譯過的父節點 |
-| 父節點保留原文 | 移除 wrapper 後，父節點的 `innerText` 就是原文 |
-
-**DOM 結構範例（翻譯後）：**
-
-```html
-<p>
-  This is the original English sentence.
-  <font class="immersive-translate-target-wrapper">
-    <font class="immersive-translate-target-translation-theme-none">
-      這是原始的英文句子。
-    </font>
-  </font>
-</p>
-```
-
-### 資料流
-
-```
-[網頁 DOM]
-    │
-    ▼  MutationObserver 偵測新增的 .immersive-translate-target-wrapper
-[content.js]
-    │  extractPairFromWrapper()：複製父節點、移除 wrapper、取得原文
-    │  sendMessage({ type: 'SAVE_PAIRS', payload: [...] })
-    ▼
-[background.js (Service Worker)]
-    │  appendPairs()：去重 + 合併 + 限制 5000 筆
-    │  chrome.storage.local.set(...)
-    ▼
-[chrome.storage.local]
-    │
-    ▼  Popup 查詢時讀取
-[popup.js]
-    │  搜尋過濾、渲染卡片、匯出 JSON
-    ▼
-[popup.html 界面]
-```
+1. 打開 Chrome，進入 `chrome://extensions/`
+2. 開啟「開發人員模式」
+3. 點擊「載入未封裝項目」
+4. 選擇本專案資料夾
+5. 安裝完成後可在工具列點開 Popup
 
 ---
 
-## 🚀 安裝方式
+## 使用流程
 
-1. 打開 Chrome，前往 `chrome://extensions/`
-2. 開啟右上角「**開發人員模式**」
-3. 點擊「**載入未封裝項目**」
-4. 選擇此資料夾 `immersivetranslateNotebook/`
-5. Extension 安裝完成！
-
----
-
-## 🔧 使用方式
-
-1. 安裝「[沉浸式翻譯](https://immersivetranslate.com/)」Chrome Extension
-2. 開啟任意英文網頁，開啟沉浸式翻譯
-3. 翻譯內容會**自動被捕捉**（MutationObserver 即時監控）
-4. 點擊本 Extension 圖示開啟 Popup：
-   - 📋 查看所有抓取到的雙語對照
-   - 🔍 搜尋過濾
-   - 💾 匯出 JSON 檔案
-   - 🔄 手動觸發抓取（「立即抓取」按鈕）
-   - 🗑️ 清除所有資料
+1. 先安裝並啟用 [Immersive Translate](https://immersivetranslate.com/)
+2. 開啟任意網頁或影片，讓沉浸式翻譯開始工作
+3. 本擴充會自動收集翻譯對
+4. 在 Popup 中可：
+   - 搜尋 / 來源過濾 / 類型過濾
+   - 收藏重要句子（⭐）
+   - 複製原文或譯文
+   - 匯出 JSON
+5. 點「獨立筆記本」進入 `notebook.html`：
+   - 集中看收藏
+   - 設定 AI 金鑰與模型
+   - 對單句做 AI 深度解析
 
 ---
 
-## 📦 匯出 JSON 格式
+## 儲存資料格式
+
+儲存在 `chrome.storage.local`（key: `it_notebook_pairs`），每筆資料類似：
 
 ```json
-[
-  {
-    "original": "The quick brown fox jumps over the lazy dog.",
-    "translation": "那隻敏捷的棕色狐狸跳過了那隻懶狗。",
-    "url": "https://example.com/article",
-    "title": "Example Article Title",
-    "timestamp": "2025-04-06T15:30:00.000Z"
-  }
-]
+{
+  "original": "The quick brown fox jumps over the lazy dog.",
+  "translation": "那隻敏捷的棕色狐狸跳過了那隻懶狗。",
+  "url": "https://example.com/article",
+  "title": "Example Article Title",
+  "timestamp": "2026-04-12T09:30:00.000Z",
+  "type": "web",
+  "isFavorite": true
+}
 ```
 
----
-
-## 🔮 未來擴展方向
-
-- [ ] 連接後端 API 自動同步到資料庫（Supabase / PostgreSQL）
-- [ ] Anki 匯出格式支援（製作單字卡）
-- [ ] 標記重要翻譯（加星號）
-- [ ] 依來源網域分類
-- [ ] 字數統計與學習進度追蹤
+欄位補充：
+- `type`: `web` 或 `video`
+- `isFavorite`: 是否加入 Notebook 收藏
 
 ---
 
-## 🛠️ 技術選型說明
+## 訊息介面（runtime message）
 
-| 項目 | 選擇 | 原因 |
-|------|------|------|
-| Manifest | V3 | Chrome 最新標準，Service Worker 取代背景頁 |
-| 儲存 | `chrome.storage.local` | 無需後端、簡單可靠、5MB 空間足夠初期使用 |
-| 監控 | `MutationObserver` | 沉浸式翻譯動態插入 DOM，需即時偵測 |
-| 去重 | `original + url` 組合鍵 | 避免重複儲存相同頁面的相同句子 |
-| 防抖 | 600ms debounce | 避免批次翻譯時觸發大量儲存操作 |
+由 `popup/notebook/content` 與 `background` 溝通：
+- `SAVE_PAIRS`
+- `GET_PAIRS`
+- `CLEAR_PAIRS`
+- `EXPORT_JSON`
+- `TOGGLE_FAVORITE`
+- `MANUAL_EXTRACT`（content script 端）
+
+---
+
+## 隱私與安全
+
+- 所有資料預設只存瀏覽器本地（`chrome.storage.local`）。
+- AI API Key 只儲存在本機 extension storage。
+- 呼叫 AI 解析時，僅會送出你選定句子（原文/譯文）與提示詞內容到所選供應商 API。
+
+---
+
+## 開發備註
+
+- 此專案為原生 JS/HTML/CSS，無 bundler。
+- 直接修改檔案後，到 `chrome://extensions/` 重新整理 extension 即可測試。
+- 快速語法檢查：
+
+```bash
+node --check popup.js
+node --check notebook.js
+node --check content.js
+node --check background.js
+```

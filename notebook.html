@@ -11,21 +11,24 @@
 </head>
 <body class="notebook-body">
   <div class="notebook-mode">
+    <div class="bg-orb orb-a" aria-hidden="true"></div>
+    <div class="bg-orb orb-b" aria-hidden="true"></div>
+
     <header class="header">
       <div class="header-main">
-        <div class="header-icon">🌌</div>
+        <div class="header-icon">✺</div>
         <div class="header-text">
-          <h1 class="header-title">專屬筆記總覽</h1>
-          <p class="header-sub">Favorites & AI Study Hub</p>
+          <h1 class="header-title">Notebook Atlas</h1>
+          <p class="header-sub">Immersive Translation Favorites</p>
         </div>
         <div class="header-count">
           <span id="total-count">0</span>
-          <span class="count-label">收藏數</span>
+          <span class="count-label">Saved</span>
         </div>
       </div>
-      <button id="btn-toggle-ai-settings" class="btn btn-primary btn-ai-settings">
-        🤖 AI 模型設定
-      </button>
+      <div class="header-actions">
+        <button id="btn-toggle-ai-settings" class="btn btn-primary btn-ai-settings">AI 模型設定</button>
+      </div>
     </header>
 
     <!-- AI Settings Panel -->
@@ -67,6 +70,19 @@
           <input type="text" id="model-custom" placeholder="或手動輸入模型名稱..." value="gemini-1.5-flash">
         </div>
       </div>
+
+      <div class="settings-group">
+        <label>設定解析結果輸出語言</label>
+        <div class="input-with-btn">
+          <select id="lang-select">
+            <option value="繁體中文">繁體中文 (Traditional Chinese)</option>
+            <option value="简体中文">简体中文 (Simplified Chinese)</option>
+            <option value="English">English</option>
+            <option value="日本語">日本語 (Japanese)</option>
+            <option value="한국어">한국어 (Korean)</option>
+          </select>
+        </div>
+      </div>
       
       <div class="settings-actions">
         <span id="settings-status"></span>
@@ -78,6 +94,10 @@
       <div class="search-bar">
         <label for="search-input" class="search-icon">⌕</label>
         <input type="text" id="search-input" class="search-input" placeholder="搜尋筆記本原文或譯文..." autocomplete="off" />
+      </div>
+      <div class="toolbar-meta">
+        <span id="results-meta">顯示 0 / 0</span>
+        <span class="toolbar-hint">Press <kbd>/</kbd> to focus search</span>
       </div>
     </section>
 

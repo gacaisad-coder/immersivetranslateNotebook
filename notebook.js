@@ -9,6 +9,7 @@ const pairsContainer = document.getElementById('pairs-container');
 const emptyState = document.getElementById('empty-state');
 const searchInput = document.getElementById('search-input');
 const totalCountEl = document.getElementById('total-count');
+const resultsMetaEl = document.getElementById('results-meta');
 
 // AI Settings Elements
 const btnToggleAiSettings = document.getElementById('btn-toggle-ai-settings');
@@ -19,6 +20,7 @@ const apiKeyInput = document.getElementById('api-key-input');
 const modelSelect = document.getElementById('model-select');
 const modelCustom = document.getElementById('model-custom');
 const providerRadios = document.getElementsByName('ai-provider');
+const langSelect = document.getElementById('lang-select');
 
 // Modal Elements
 const aiModal = document.getElementById('ai-modal');
@@ -54,7 +56,10 @@ function renderPairs() {
     return !query || (p.original && p.original.toLowerCase().includes(query)) || (p.translation && p.translation.toLowerCase().includes(query));
   });
 
-  totalCountEl.textContent = String(filtered.length);
+  totalCountEl.textContent = String(favoritePairs.length);
+  if (resultsMetaEl) {
+    resultsMetaEl.textContent = `顯示 ${filtered.length} / ${favoritePairs.length}`;
+  }
 
   if (filtered.length === 0) {
     pairsContainer.innerHTML = '';
@@ -82,6 +87,12 @@ function renderPairs() {
 
 // Event Listeners
 searchInput.addEventListener('input', renderPairs);
+document.addEventListener('keydown', event => {
+  if (event.key === '/' && document.activeElement !== searchInput) {
+    event.preventDefault();
+    searchInput.focus();
+  }
+});
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && changes['it_notebook_pairs']) {
@@ -91,36 +102,52 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   }
 });
 
-// AI Configuration Logic
 let aiConfig = {
   provider: 'gemini',
-  apiKey: '',
-  model: 'gemini-1.5-flash'
+  outputLanguage: '繁體中文',
+  gemini: { apiKey: '', model: 'gemini-1.5-flash' },
+  openai: { apiKey: '', model: 'gpt-4o-mini' }
 };
 
 function loadAiConfig() {
   chrome.storage.local.get(['it_ai_config'], result => {
     if (result.it_ai_config) {
-      aiConfig = result.it_ai_config;
-      
-      // Update UI
-      providerRadios.forEach(r => r.checked = (r.value === aiConfig.provider));
-      apiKeyInput.value = aiConfig.apiKey;
-      
-      let foundInSelect = false;
-      Array.from(modelSelect.options).forEach(opt => {
-        if (opt.value === aiConfig.model) foundInSelect = true;
-      });
-      
-      if (foundInSelect) {
-        modelSelect.value = aiConfig.model;
-        modelCustom.value = aiConfig.model;
+      // Migrate old format if needed
+      if (result.it_ai_config.apiKey !== undefined) {
+        aiConfig.provider = result.it_ai_config.provider || 'gemini';
+        aiConfig.outputLanguage = result.it_ai_config.outputLanguage || '繁體中文';
+        if (aiConfig.provider === 'gemini') {
+          aiConfig.gemini.apiKey = result.it_ai_config.apiKey;
+          aiConfig.gemini.model = result.it_ai_config.model || 'gemini-1.5-flash';
+        } else {
+          aiConfig.openai.apiKey = result.it_ai_config.apiKey;
+          aiConfig.openai.model = result.it_ai_config.model || 'gpt-4o-mini';
+        }
       } else {
-        modelSelect.value = 'gemini-1.5-flash';
-        modelCustom.value = aiConfig.model;
+        aiConfig = result.it_ai_config;
+        if (!aiConfig.gemini) aiConfig.gemini = { apiKey: '', model: 'gemini-1.5-flash' };
+        if (!aiConfig.openai) aiConfig.openai = { apiKey: '', model: 'gpt-4o-mini' };
       }
+      
+      providerRadios.forEach(r => r.checked = (r.value === aiConfig.provider));
+      if (aiConfig.outputLanguage) langSelect.value = aiConfig.outputLanguage;
+      updateConfigUI(aiConfig.provider, false);
     }
   });
+}
+
+function updateConfigUI(provider, updateOptions = true) {
+  const cfg = aiConfig[provider];
+  apiKeyInput.value = cfg.apiKey;
+  modelCustom.value = cfg.model;
+  
+  if (updateOptions) {
+    modelSelect.innerHTML = `<option value="${cfg.model}">${cfg.model}</option>`;
+  }
+  modelSelect.value = cfg.model;
+  
+  const label = document.getElementById('api-key-label');
+  label.textContent = provider === 'openai' ? 'OpenAI API Key' : 'Google AI Studio API Key';
 }
 
 btnToggleAiSettings.addEventListener('click', () => {
@@ -133,11 +160,14 @@ modelSelect.addEventListener('change', () => {
 
 providerRadios.forEach(r => {
   r.addEventListener('change', () => {
-    const label = document.getElementById('api-key-label');
-    if (r.value === 'openai') {
-      label.textContent = 'OpenAI API Key';
-    } else {
-      label.textContent = 'Google AI Studio API Key';
+    if (r.checked) {
+      const newProvider = r.value;
+      const oldProvider = newProvider === 'gemini' ? 'openai' : 'gemini';
+      
+      aiConfig[oldProvider].apiKey = apiKeyInput.value.trim();
+      aiConfig[oldProvider].model = modelCustom.value.trim();
+      
+      updateConfigUI(newProvider);
     }
   });
 });
@@ -160,10 +190,19 @@ btnVerifyModel.addEventListener('click', async () => {
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
       
-      const models = data.models.filter(m => m.name.includes('gemini'));
-      modelSelect.innerHTML = models.map(m => `<option value="${m.name.split('models/')[1]}">${m.name.split('models/')[1]}</option>`).join('');
+      const models = (data.models || [])
+        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => m.name.split('models/')[1])
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
+
+      if (models.length === 0) {
+        throw new Error('未取得可用的文字生成模型');
+      }
+
+      modelSelect.innerHTML = models.map(modelName => `<option value="${modelName}">${modelName}</option>`).join('');
       alert('驗證成功！已更新模型列表');
-      if (models.length > 0) modelCustom.value = modelSelect.value;
+      modelCustom.value = modelSelect.value;
     } else {
       const res = await fetch('https://api.openai.com/v1/models', {
         headers: { 'Authorization': `Bearer ${key}` }
@@ -187,10 +226,10 @@ btnSaveSettings.addEventListener('click', () => {
   let provider = 'gemini';
   providerRadios.forEach(r => { if (r.checked) provider = r.value; });
   
-  const key = apiKeyInput.value.trim();
-  const model = modelCustom.value.trim() || modelSelect.value;
-  
-  aiConfig = { provider, apiKey: key, model };
+  aiConfig.provider = provider;
+  aiConfig.outputLanguage = langSelect.value;
+  aiConfig[provider].apiKey = apiKeyInput.value.trim();
+  aiConfig[provider].model = modelCustom.value.trim() || modelSelect.value;
   
   chrome.storage.local.set({ it_ai_config: aiConfig }, () => {
     settingsStatus.textContent = "✅ 設定已儲存";
@@ -207,7 +246,9 @@ pairsContainer.addEventListener('click', async e => {
   const pair = renderedPairs[index];
   if (!pair) return;
   
-  if (!aiConfig.apiKey) {
+  const activeCfg = aiConfig[aiConfig.provider];
+  
+  if (!activeCfg.apiKey) {
     aiSettingsPanel.classList.remove('hidden');
     apiKeyInput.focus();
     alert('請先設定您的 API Key！');
@@ -240,12 +281,37 @@ function formatMarkdown(text) {
 }
 
 async function askAi(pair) {
-  const prompt = `請針對這句話進行深度文法分析與字彙講解。\n原文：${pair.original}\n參考翻譯：${pair.translation}\n請列出關鍵單字、文法結構，並說明其中的語境，如果可能的話提供類似的使用例句。排版請使用易讀的形式。`;
+  const lang = aiConfig.outputLanguage || '繁體中文';
+  const prompt = `您是一位專業且嚴謹的外語教師。請針對以下句子進行結構化解析。不可有任何寒暄，且絕對「不要」在結尾提出任何問題或反問。
+
+【原文】：${pair.original}
+【參考翻譯】：${pair.translation}
+
+請嚴格依照以下結構輸出：
+
+### 📝 核心語義與語境
+(精簡說明這句話的使用場景、語氣或文化背景)
+
+### 🔑 關鍵字彙片語
+(列出 2-4 個核心單字或片語，附上詞性、字義與短例句)
+
+### 🧩 文法結構拆解
+(拆解重點句型與時態)
+
+### 💡 延伸表達方式
+(提供 1-2 句母語人士的同義或進階說法)
+
+⚠️ 請絕對遵守：
+1. 僅根據上面提供的原文進行解析
+2. 全程務必使用「${lang}」進行解說
+3. 輸出完畢後直接結束，不可詢問使用者是否有其他問題。`;
 
   try {
     let resultText = "";
+    const activeCfg = aiConfig[aiConfig.provider];
+
     if (aiConfig.provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${aiConfig.model}:generateContent?key=${aiConfig.apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeCfg.model}:generateContent?key=${activeCfg.apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,10 +331,10 @@ async function askAi(pair) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiConfig.apiKey}`
+          'Authorization': `Bearer ${activeCfg.apiKey}`
         },
         body: JSON.stringify({
-          model: aiConfig.model || 'gpt-4o-mini',
+          model: activeCfg.model || 'gpt-4o-mini',
           messages: [{ role: 'user', content: prompt }]
         })
       });
