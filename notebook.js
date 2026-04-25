@@ -27,6 +27,8 @@ const aiModal = document.getElementById('ai-modal');
 const modalClose = document.getElementById('modal-close');
 const aiModalSource = document.getElementById('ai-modal-source');
 const aiModalResult = document.getElementById('ai-modal-result');
+let activeAiAbortController = null;
+let activeAiRequestId = 0;
 
 // Load Data
 async function loadAndRender() {
@@ -264,67 +266,186 @@ function openModal(pair) {
     ${escapeHtml(pair.original)}<br/>
     <small>${escapeHtml(pair.translation)}</small>
   `;
-  aiModalResult.innerHTML = '<div class="loading-spinner">✨ 連線中，努力解析文法...</div>';
+  aiModalResult.innerHTML = `
+    <div class="ai-progress" data-role="ai-progress">
+      <div class="ai-progress-steps">
+        <span class="ai-step is-active" data-step="received">已接收請求</span>
+        <span class="ai-step" data-step="parsing">解析句法中</span>
+        <span class="ai-step" data-step="tldr">生成 TL;DR</span>
+        <span class="ai-step" data-step="details">補充重點與細節</span>
+      </div>
+      <div class="loading-spinner" data-role="loading-hint">✨ 已送出請求，等待模型回傳...</div>
+    </div>
+    <div class="ai-stream-box" data-role="stream-box">
+      <div class="ai-stream-placeholder">結果會以串流方式顯示，先看到重點再補細節。</div>
+      <div class="ai-stream-content" data-role="stream-content"></div>
+    </div>
+  `;
   aiModal.classList.remove('hidden');
 }
 
 modalClose.addEventListener('click', () => {
+  if (activeAiAbortController) {
+    activeAiAbortController.abort();
+    activeAiAbortController = null;
+  }
   aiModal.classList.add('hidden');
 });
 
 // Simple markdown formatter
 function formatMarkdown(text) {
   return text
+    .replace(/^###\s+(.*)$/gm, '<strong>$1</strong>')
+    .replace(/^- (.*)$/gm, '• $1')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br/>');
 }
 
+function updateAiPhase(step) {
+  const allSteps = ['received', 'parsing', 'tldr', 'details'];
+  const activeIndex = allSteps.indexOf(step);
+  const stepEls = aiModalResult.querySelectorAll('.ai-step');
+  stepEls.forEach((el, index) => {
+    el.classList.toggle('is-active', index === activeIndex);
+    el.classList.toggle('is-done', index < activeIndex);
+  });
+
+  const hintEl = aiModalResult.querySelector('[data-role="loading-hint"]');
+  if (!hintEl) return;
+  if (step === 'received') hintEl.textContent = '✨ 已送出請求，等待模型回傳...';
+  if (step === 'parsing') hintEl.textContent = '✨ 文字已開始返回，正在解析句法...';
+  if (step === 'tldr') hintEl.textContent = '✨ 已先產生結論，正在補齊重點...';
+  if (step === 'details') hintEl.textContent = '✨ 正在補充完整細節...';
+}
+
+function renderStreamingText(text) {
+  const streamContent = aiModalResult.querySelector('[data-role="stream-content"]');
+  if (!streamContent) return;
+  streamContent.innerHTML = formatMarkdown(escapeHtml(text));
+}
+
+function ensureThreeLayerFormat(rawText) {
+  const cleaned = (rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!cleaned) {
+    return '### TL;DR\n（模型未回傳內容）\n\n### 重點\n- （無）\n\n### 細節\n（無）';
+  }
+
+  const hasTldr = /(^|\n)#{1,6}\s*TL;DR/i.test(cleaned);
+  const hasPoints = /(^|\n)#{1,6}\s*重點/i.test(cleaned);
+  const hasDetail = /(^|\n)#{1,6}\s*細節/i.test(cleaned);
+  if (hasTldr && hasPoints && hasDetail) return cleaned;
+
+  const blocks = cleaned.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+  const tldr = blocks[0] || cleaned.slice(0, 120);
+  const pointSource = blocks.slice(1, 3).join('\n').trim();
+  const points = pointSource
+    ? pointSource.split('\n').map(line => line.replace(/^[-*]\s*/, '').trim()).filter(Boolean).slice(0, 4)
+    : [];
+  const bullets = points.length > 0 ? points.map(line => `- ${line}`).join('\n') : '- （模型未提供條列重點）';
+  const details = blocks.slice(2).join('\n\n').trim() || blocks.slice(1).join('\n\n').trim() || cleaned;
+
+  return `### TL;DR\n${tldr}\n\n### 重點\n${bullets}\n\n### 細節\n${details}`;
+}
+
+function mergeStreamingText(currentText, chunkText) {
+  if (!chunkText) return currentText;
+  if (!currentText) return chunkText;
+  if (chunkText.startsWith(currentText)) return chunkText;
+  if (currentText.endsWith(chunkText)) return currentText;
+  return currentText + chunkText;
+}
+
+async function parseSseStream(response, onTextChunk) {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('瀏覽器不支援串流讀取');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      let json;
+      try {
+        json = JSON.parse(payload);
+      } catch (_err) {
+        continue;
+      }
+
+      const openAiChunk = json.choices?.[0]?.delta?.content;
+      const geminiChunk = json.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+      const text = openAiChunk || geminiChunk;
+      if (text) onTextChunk(text);
+    }
+  }
+}
+
 async function askAi(pair) {
+  if (activeAiAbortController) activeAiAbortController.abort();
+
+  const requestId = ++activeAiRequestId;
+  const controller = new AbortController();
+  activeAiAbortController = controller;
+
   const lang = aiConfig.outputLanguage || '繁體中文';
-  const prompt = `您是一位專業且嚴謹的外語教師。請針對以下句子進行結構化解析。不可有任何寒暄，且絕對「不要」在結尾提出任何問題或反問。
+  const prompt = `請用${lang}解析句子，直接輸出，不要寒暄或提問。
 
-【原文】：${pair.original}
-【參考翻譯】：${pair.translation}
+原文：${pair.original}
+參考翻譯：${pair.translation}
 
-請嚴格依照以下結構輸出：
-
-### 📝 核心語義與語境
-(精簡說明這句話的使用場景、語氣或文化背景)
-
-### 🔑 關鍵字彙片語
-(列出 2-4 個核心單字或片語，附上詞性、字義與短例句)
-
-### 🧩 文法結構拆解
-(拆解重點句型與時態)
-
-### 💡 延伸表達方式
-(提供 1-2 句母語人士的同義或進階說法)
-
-⚠️ 請絕對遵守：
-1. 僅根據上面提供的原文進行解析
-2. 全程務必使用「${lang}」進行解說
-3. 輸出完畢後直接結束，不可詢問使用者是否有其他問題。`;
+請用以下格式，且先輸出 TL;DR：
+### TL;DR
+（一句話）
+### 重點
+（2-4 點：關鍵字/片語與文法重點）
+### 細節
+（簡潔拆解句型與語氣，可補 1 句延伸表達）`;
 
   try {
-    let resultText = "";
+    let resultText = '';
     const activeCfg = aiConfig[aiConfig.provider];
+    updateAiPhase('received');
 
     if (aiConfig.provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeCfg.model}:generateContent?key=${activeCfg.apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeCfg.model}:streamGenerateContent?alt=sse&key=${activeCfg.apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         })
       });
-      
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message || 'Gemini API 發生錯誤');
-      
-      resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "無回應內容";
-      
+
+      if (!response.ok) {
+        let errMessage = 'Gemini API 發生錯誤';
+        try {
+          const data = await response.json();
+          errMessage = data.error?.message || errMessage;
+        } catch (_err) {}
+        throw new Error(errMessage);
+      }
+
+      updateAiPhase('parsing');
+      await parseSseStream(response, chunk => {
+        if (requestId !== activeAiRequestId) return;
+        resultText = mergeStreamingText(resultText, chunk);
+        if (/#{1,6}\s*TL;DR/i.test(resultText)) updateAiPhase('tldr');
+        if (/#{1,6}\s*重點/i.test(resultText)) updateAiPhase('details');
+        renderStreamingText(resultText);
+      });
     } else if (aiConfig.provider === 'openai') {
       const url = "https://api.openai.com/v1/chat/completions";
       const response = await fetch(url, {
@@ -333,21 +454,47 @@ async function askAi(pair) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${activeCfg.apiKey}`
         },
+        signal: controller.signal,
         body: JSON.stringify({
           model: activeCfg.model || 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }]
+          messages: [{ role: 'user', content: prompt }],
+          stream: true
         })
       });
-      
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message || 'OpenAI API 發生錯誤');
-      
-      resultText = data.choices?.[0]?.message?.content || "無回應內容";
+
+      if (!response.ok) {
+        let errMessage = 'OpenAI API 發生錯誤';
+        try {
+          const data = await response.json();
+          errMessage = data.error?.message || errMessage;
+        } catch (_err) {}
+        throw new Error(errMessage);
+      }
+
+      updateAiPhase('parsing');
+      await parseSseStream(response, chunk => {
+        if (requestId !== activeAiRequestId) return;
+        resultText = mergeStreamingText(resultText, chunk);
+        if (/#{1,6}\s*TL;DR/i.test(resultText)) updateAiPhase('tldr');
+        if (/#{1,6}\s*重點/i.test(resultText)) updateAiPhase('details');
+        renderStreamingText(resultText);
+      });
     }
 
-    aiModalResult.innerHTML = formatMarkdown(escapeHtml(resultText));
+    if (requestId !== activeAiRequestId) return;
+    if (!resultText.trim()) {
+      throw new Error('模型未回傳內容');
+    }
+
+    updateAiPhase('details');
+    aiModalResult.innerHTML = formatMarkdown(escapeHtml(ensureThreeLayerFormat(resultText)));
   } catch (err) {
+    if (err.name === 'AbortError') return;
     aiModalResult.innerHTML = `<p style="color: #ff6f6f;"><strong>❌ 解析失敗：</strong>${escapeHtml(err.message)}</p>`;
+  } finally {
+    if (requestId === activeAiRequestId) {
+      activeAiAbortController = null;
+    }
   }
 }
 

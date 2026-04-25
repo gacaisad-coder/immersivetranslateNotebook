@@ -541,6 +541,61 @@ kbd {
   color: #3b5f89;
 }
 
+.ai-progress {
+  margin-bottom: 12px;
+}
+
+.ai-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.ai-step {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 132, 107, 0.32);
+  background: #f8f2e8;
+  color: #667487;
+  font-size: 0.75rem;
+}
+
+.ai-step.is-active {
+  border-color: rgba(47, 110, 106, 0.5);
+  background: #dff0ed;
+  color: #225854;
+  font-weight: 680;
+}
+
+.ai-step.is-done {
+  border-color: rgba(47, 110, 106, 0.42);
+  background: #eef8f6;
+  color: #2f6e6a;
+}
+
+.ai-stream-box {
+  border-radius: 12px;
+  border: 1px dashed rgba(145, 125, 95, 0.34);
+  background: #fffdf8;
+  padding: 12px;
+}
+
+.ai-stream-placeholder {
+  margin-bottom: 7px;
+  color: #7a8799;
+  font-size: 0.8rem;
+}
+
+.ai-stream-content {
+  min-height: 32px;
+  color: #2a3a51;
+}
+
 @media (max-width: 920px) {
   .header,
   .toolbar,
