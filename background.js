@@ -63,6 +63,42 @@ async function appendPairs(newPairs) {
   return unique.length;
 }
 
+/**
+ * 檢查與正規化匯入資料，避免寫入不完整欄位
+ * @param {unknown[]} rawPairs
+ * @returns {Array}
+ */
+function normalizeImportedPairs(rawPairs) {
+  if (!Array.isArray(rawPairs)) return [];
+
+  return rawPairs
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const original = typeof item.original === 'string' ? item.original.trim() : '';
+      const translation = typeof item.translation === 'string' ? item.translation.trim() : '';
+      if (!original || !translation) return null;
+
+      const sourceTime = typeof item.timestamp === 'string' || typeof item.timestamp === 'number'
+        ? item.timestamp
+        : Date.now();
+      const parsedTime = new Date(sourceTime);
+      const safeTimestamp = Number.isNaN(parsedTime.getTime())
+        ? new Date().toISOString()
+        : parsedTime.toISOString();
+
+      return {
+        original,
+        translation,
+        url: typeof item.url === 'string' ? item.url : '',
+        title: typeof item.title === 'string' ? item.title : '',
+        timestamp: safeTimestamp,
+        type: item.type === 'video' ? 'video' : 'web',
+        isFavorite: Boolean(item.isFavorite)
+      };
+    })
+    .filter(Boolean);
+}
+
 // ─── 訊息處理 ─────────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -107,6 +143,34 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ success: true, json: JSON.stringify(pairs, null, 2) });
       })
       .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // ── 從 JSON 匯入（來自 Popup）
+  if (message.type === 'IMPORT_JSON') {
+    const normalized = normalizeImportedPairs(message.payload);
+    if (!normalized.length) {
+      sendResponse({ success: false, error: '沒有可匯入的有效資料' });
+      return true;
+    }
+
+    loadPairs().then(existing => {
+      const keySet = new Set(existing.map(p => `${p.url || ''}||${p.original || ''}`));
+      const unique = normalized.filter(p => !keySet.has(`${p.url || ''}||${p.original || ''}`));
+      const skipped = normalized.length - unique.length;
+
+      const merged = [...existing, ...unique].slice(-MAX_PAIRS);
+      const dropped = Math.max(0, existing.length + unique.length - MAX_PAIRS);
+
+      return savePairs(merged).then(() => ({
+        imported: unique.length,
+        skipped,
+        dropped,
+        accepted: normalized.length
+      }));
+    })
+    .then((result) => sendResponse({ success: true, ...result }))
+    .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 

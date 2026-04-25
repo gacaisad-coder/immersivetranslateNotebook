@@ -41,6 +41,10 @@
           <span class="btn-icon">◉</span>
           <span class="btn-text">立即抓取</span>
         </button>
+        <button id="btn-import" class="btn btn-secondary" title="從 JSON 檔案匯入">
+          <span class="btn-icon">⇡</span>
+          <span class="btn-text">匯入</span>
+        </button>
         <button id="btn-export" class="btn btn-secondary" title="匯出為 JSON 檔案">
           <span class="btn-icon">⇣</span>
           <span class="btn-text">匯出</span>
@@ -54,6 +58,7 @@
           <span class="btn-text">清除</span>
         </button>
       </div>
+      <input id="import-file-input" type="file" accept=".json,application/json" hidden />
       <div id="status-bar" class="status-bar hidden"></div>
       <div class="search-bar">
         <label for="search-input" class="search-icon">⌕</label>

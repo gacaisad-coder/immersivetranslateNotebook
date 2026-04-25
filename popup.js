@@ -5,6 +5,7 @@
  *  - 載入並呈現已儲存的翻譯對
  *  - 手動觸發抓取
  *  - 搜尋過濾
+ *  - 匯入 JSON
  *  - 匯出 JSON
  *  - 清空資料
  */
@@ -17,8 +18,10 @@ const emptyState = document.getElementById('empty-state');
 const statusBar = document.getElementById('status-bar');
 const searchInput = document.getElementById('search-input');
 const btnExtract = document.getElementById('btn-extract');
+const btnImport = document.getElementById('btn-import');
 const btnExport = document.getElementById('btn-export');
 const btnClear = document.getElementById('btn-clear');
+const importFileInput = document.getElementById('import-file-input');
 const activeFilterEl = document.getElementById('active-filter');
 const visibleCountEl = document.getElementById('visible-count');
 const sourceSelect = document.getElementById('source-select');
@@ -31,6 +34,7 @@ let statusTimer = null;
 let currentFilter = 'all'; // 'all' | 'web' | 'video'
 let sourceValueMap = new Map();
 let knownPairKeys = new Set();
+const STORAGE_KEY = 'it_notebook_pairs';
 
 const filterTabs = document.querySelectorAll('.filter-tab');
 
@@ -121,6 +125,74 @@ function getFilterLabel(filter) {
 
 function getPairKey(pair) {
   return `${pair.url || ''}||${pair.original || ''}`;
+}
+
+function normalizeImportedPairs(rawPairs) {
+  if (!Array.isArray(rawPairs)) return [];
+
+  return rawPairs
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const original = typeof item.original === 'string' ? item.original.trim() : '';
+      const translation = typeof item.translation === 'string' ? item.translation.trim() : '';
+      if (!original || !translation) return null;
+
+      const sourceTime = typeof item.timestamp === 'string' || typeof item.timestamp === 'number'
+        ? item.timestamp
+        : Date.now();
+      const parsedTime = new Date(sourceTime);
+      const safeTimestamp = Number.isNaN(parsedTime.getTime())
+        ? new Date().toISOString()
+        : parsedTime.toISOString();
+
+      return {
+        original,
+        translation,
+        url: typeof item.url === 'string' ? item.url : '',
+        title: typeof item.title === 'string' ? item.title : '',
+        timestamp: safeTimestamp,
+        type: item.type === 'video' ? 'video' : 'web',
+        isFavorite: Boolean(item.isFavorite)
+      };
+    })
+    .filter(Boolean);
+}
+
+function importPairsByStorageFallback(rawPayload) {
+  const normalized = normalizeImportedPairs(rawPayload);
+  if (!normalized.length) {
+    return Promise.reject(new Error('沒有可匯入的有效資料'));
+  }
+
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get([STORAGE_KEY], result => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      const existing = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+      const keySet = new Set(existing.map(p => `${p.url || ''}||${p.original || ''}`));
+      const unique = normalized.filter(p => !keySet.has(`${p.url || ''}||${p.original || ''}`));
+      const skipped = normalized.length - unique.length;
+      const maxPairs = 5000;
+      const merged = [...existing, ...unique].slice(-maxPairs);
+      const dropped = Math.max(0, existing.length + unique.length - maxPairs);
+
+      chrome.storage.local.set({ [STORAGE_KEY]: merged }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve({
+          success: true,
+          imported: unique.length,
+          skipped,
+          dropped
+        });
+      });
+    });
+  });
 }
 
 function updateSourceOptions() {
@@ -305,6 +377,79 @@ btnExport.addEventListener('click', () => {
     URL.revokeObjectURL(url);
     showStatus('💾 JSON 已匯出', 'success');
   });
+});
+
+/** 匯入 JSON */
+btnImport.addEventListener('click', () => {
+  importFileInput.click();
+});
+
+importFileInput.addEventListener('change', async () => {
+  const file = importFileInput.files?.[0];
+  if (!file) return;
+
+  btnImport.disabled = true;
+  const originalHTML = btnImport.innerHTML;
+  btnImport.innerHTML = '<span class="btn-icon">⇡</span><span class="btn-text">匯入中...</span>';
+
+  try {
+    const text = await file.text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error('JSON 格式錯誤');
+    }
+
+    if (!Array.isArray(payload)) {
+      throw new Error('檔案內容必須是陣列');
+    }
+
+    chrome.runtime.sendMessage({ type: 'IMPORT_JSON', payload }, async response => {
+      btnImport.disabled = false;
+      btnImport.innerHTML = originalHTML;
+      importFileInput.value = '';
+
+      const runtimeError = chrome.runtime.lastError?.message;
+      const shouldFallback = runtimeError?.includes('message port closed') || runtimeError?.includes('receiving end does not exist');
+
+      if (runtimeError && !shouldFallback) {
+        showStatus(`⚠️ 匯入失敗：${runtimeError}`, 'error', 3600);
+        return;
+      }
+
+      let finalResponse = response;
+      if (shouldFallback) {
+        try {
+          finalResponse = await importPairsByStorageFallback(payload);
+        } catch (fallbackErr) {
+          showStatus(`⚠️ 匯入失敗：${fallbackErr?.message || '未知錯誤'}`, 'error', 3600);
+          return;
+        }
+      }
+
+      if (!finalResponse?.success) {
+        showStatus(`⚠️ 匯入失敗：${finalResponse?.error || '未知錯誤'}`, 'error', 3600);
+        return;
+      }
+
+      const imported = finalResponse.imported || 0;
+      const skipped = finalResponse.skipped || 0;
+      const dropped = finalResponse.dropped || 0;
+      const droppedMsg = dropped > 0 ? `（因上限移除 ${dropped} 筆最舊資料）` : '';
+      showStatus(`✅ 匯入完成：新增 ${imported} 筆，略過 ${skipped} 筆${droppedMsg}`, 'success', 3800);
+      loadAndRender();
+    });
+    return;
+  } catch (err) {
+    showStatus(`⚠️ 匯入失敗：${err?.message || '讀取檔案失敗'}`, 'error', 3600);
+  } finally {
+    if (btnImport.disabled) {
+      btnImport.disabled = false;
+      btnImport.innerHTML = originalHTML;
+      importFileInput.value = '';
+    }
+  }
 });
 
 /** 清除所有資料 */
