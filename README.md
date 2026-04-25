@@ -4,6 +4,20 @@ Chrome Extension（Manifest V3），用來擷取沉浸式翻譯在網頁與影�
 - Popup 快速檢索 / 收藏 / 匯出
 - 獨立分頁 Notebook（收藏清單 + AI 深度解析）
 
+## Demo Video
+
+<video
+  src="./tutorial-video/out/immersive-translate-tutorial.mp4"
+  poster="./tutorial-video/out/preview.png"
+  controls
+  muted
+  playsinline
+  width="960"
+></video>
+
+如果目前的 Markdown 檢視器不支援內嵌播放，可直接開啟：
+[tutorial-video/out/immersive-translate-tutorial.mp4](./tutorial-video/out/immersive-translate-tutorial.mp4)
+
 ---
 
 ## 功能總覽
