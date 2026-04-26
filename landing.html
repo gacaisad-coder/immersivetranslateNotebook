@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Immersive Translate Notebook | 一頁式介紹與安裝教學</title>
+  <meta name="description" content="Immersive Translate Notebook 一頁式介紹：功能亮點、Chrome 安裝教學、下載連結與快速開始。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffbf5;
+      --ink: #182023;
+      --ink-soft: #4e5a5f;
+      --accent: #0f8a83;
+      --accent-2: #f05f2b;
+      --line: #1f2a30;
+      --glow: rgba(15, 138, 131, 0.2);
+      --radius: 18px;
+      --shadow-hard: 0 12px 0 #1f2a30;
+      --max-width: 1120px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "IBM Plex Sans TC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 12%, rgba(240, 95, 43, 0.2), transparent 26%),
+        radial-gradient(circle at 84% 18%, rgba(15, 138, 131, 0.18), transparent 24%),
+        linear-gradient(125deg, #f4efe6 0%, #efe7d7 45%, #f8f2e9 100%);
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .grain::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.14;
+      background-image:
+        radial-gradient(#000 0.35px, transparent 0.35px);
+      background-size: 4px 4px;
+      z-index: 0;
+    }
+
+    .site {
+      position: relative;
+      z-index: 1;
+    }
+
+    .container {
+      width: min(var(--max-width), 92vw);
+      margin: 0 auto;
+    }
+
+    .topbar {
+      margin-top: 28px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 18px;
+      background: rgba(255, 251, 245, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      backdrop-filter: blur(3px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .brand img {
+      width: 28px;
+      height: 28px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .topbar nav {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-top: 22px;
+      align-items: stretch;
+    }
+
+    .hero-main,
+    .hero-side {
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow-hard);
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 138, 131, 0.22), rgba(15, 138, 131, 0));
+      pointer-events: none;
+    }
+
+    .kicker {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      font-family: "DM Serif Display", serif;
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4.6vw, 4rem);
+      max-width: 18ch;
+    }
+
+    .hero p {
+      color: var(--ink-soft);
+      margin: 18px 0 0;
+      max-width: 54ch;
+    }
+
+    .cta-row {
+      margin-top: 26px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 5px 0 #1f2a30;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 #1f2a30;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #f7fdfd;
+    }
+
+    .btn.ghost {
+      background: #fff;
+    }
+
+    .stats {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stat {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .stat strong {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 1.6rem;
+      display: block;
+    }
+
+    .stat span {
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    section {
+      margin-top: 26px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow-hard);
+      padding: 30px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+
+    .section-header p {
+      margin: 0;
+      color: var(--ink-soft);
+      max-width: 48ch;
+    }
+
+    .feature-grid,
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 16px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 14px;
+      align-items: start;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 700;
+      font-family: "JetBrains Mono", monospace;
+      color: #fff;
+      background: var(--accent-2);
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .step code {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.86em;
+      background: #f3efe8;
+      border: 1px solid #c9bfb0;
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+
+    .download-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 178px;
+      gap: 10px;
+    }
+
+    .download-card .btn {
+      width: fit-content;
+      box-shadow: none;
+      background: #fff;
+    }
+
+    .download-card .btn:hover {
+      box-shadow: none;
+    }
+
+    footer {
+      width: min(var(--max-width), 92vw);
+      margin: 24px auto 34px;
+      border-top: 2px dashed var(--line);
+      padding-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+
+    @media (max-width: 980px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-grid,
+      .download-grid {
+        grid-template-columns: 1fr;
+      }
+
+      section,
+      .hero-main,
+      .hero-side {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body class="grain">
+  <div class="site">
+    <header class="container topbar">
+      <div class="brand">
+        <img src="./icons/icon128.png" alt="Immersive Translate Notebook Icon" />
+        <span>Immersive Translate Notebook</span>
+      </div>
+      <nav>
+        <a href="#features">功能亮點</a>
+        <a href="#install">安裝教學</a>
+        <a href="#download">下載</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="hero" aria-label="intro">
+        <article class="hero-main">
+          <div class="kicker">Chrome Extension / Manifest V3</div>
+          <h1>把沉浸式翻譯內容，整理成可搜尋、可收藏、可解析的學習筆記。</h1>
+          <p>
+            這個工具會自動擷取網頁與影片字幕的雙語內容，讓你在 Popup 內快速搜尋與收藏，並在 Notebook 進行 AI 深度文法解析。
+          </p>
+          <div class="cta-row">
+            <a class="btn primary" href="#install">立即安裝</a>
+            <a class="btn ghost" href="#download">前往下載</a>
+          </div>
+        </article>
+
+        <aside class="hero-side" aria-label="quick-facts">
+          <div class="stats">
+            <div class="stat">
+              <strong>3 in 1</strong>
+              <span>擷取 / 收藏 / AI 解析 一次到位</span>
+            </div>
+            <div class="stat">
+              <strong>Local First</strong>
+              <span>資料預設儲存在 <code>chrome.storage.local</code></span>
+            </div>
+            <div class="stat">
+              <strong>MV3</strong>
+              <span>原生 HTML/CSS/JS，免打包可直接載入測試</span>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="features">
+        <div class="section-header">
+          <h2>功能亮點</h2>
+          <p>專注在「看懂、記住、回顧」三件事，讓翻譯不只是瀏覽，而是可長期累積的知識資產。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="card">
+            <h3>自動擷取雙語內容</h3>
+            <p>支援網頁翻譯與影片字幕（含 Shadow DOM 場景），透過觀察器持續追蹤新內容。</p>
+          </article>
+          <article class="card">
+            <h3>Popup 即時整理</h3>
+            <p>可搜尋、篩選、收藏、複製與匯出，快速從大量句子中抓到最值得記錄的內容。</p>
+          </article>
+          <article class="card">
+            <h3>Notebook 深度學習</h3>
+            <p>收藏集中在獨立頁面閱讀，並可串接 Gemini 或 OpenAI 做句子級文法解析。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="install">
+        <div class="section-header">
+          <h2>安裝教學</h2>
+          <p>以下流程約 1 分鐘完成。安裝後，先啟用 Immersive Translate，再開始收集雙語句子。</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div>
+              <b>開啟擴充功能頁</b>
+              在 Chrome 輸入 <code>chrome://extensions/</code>。
+            </div>
+          </article>
+          <article class="step">
+            <div>
+              <b>啟用開發人員模式</b>
+              將右上角的「開發人員模式」切換為開啟。
+            </div>
+          </article>
+          <article class="step">
+            <div>
+              <b>載入未封裝項目</b>
+              點擊「載入未封裝項目」，選擇本專案資料夾。
+            </div>
+          </article>
+          <article class="step">
+            <div>
+              <b>釘選並開始使用</b>
+              安裝後釘選擴充套件，開啟任何有翻譯內容的網頁或影片即可自動收集。
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="download">
+        <div class="section-header">
+          <h2>下載連結</h2>
+          <p>提供原始碼壓縮包、GitHub 倉庫與本地教學影片，方便你快速導入與分享。</p>
+        </div>
+        <div class="download-grid">
+          <article class="card download-card">
+            <div>
+              <h3>下載原始碼 ZIP</h3>
+              <p>直接下載主分支壓縮檔，解壓後即可用 Chrome 載入未封裝項目安裝。</p>
+            </div>
+            <a class="btn" href="https://github.com/Xhinmin/immersivetranslateNotebook/archive/refs/heads/main.zip">下載 main.zip</a>
+          </article>
+
+          <article class="card download-card">
+            <div>
+              <h3>GitHub Repository</h3>
+              <p>查看完整程式碼、README 與後續更新紀錄。</p>
+            </div>
+            <a class="btn" href="https://github.com/Xhinmin/immersivetranslateNotebook">前往 GitHub</a>
+          </article>
+
+          <article class="card download-card">
+            <div>
+              <h3>教學影片（本地）</h3>
+              <p>若要快速理解實際操作流程，可直接播放專案內的示範影片。</p>
+            </div>
+            <a class="btn" href="./tutorial-video/out/immersive-translate-tutorial.mp4">播放教學影片</a>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Built for bilingual learning workflows.</span>
+      <span>© <span id="year"></span> Immersive Translate Notebook</span>
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = String(new Date().getFullYear());
+  </script>
+</body>
+</html>
