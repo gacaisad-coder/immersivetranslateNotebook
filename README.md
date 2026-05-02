@@ -73,6 +73,18 @@ immersivetranslateNotebook/
 
 ---
 
+## 如何打包 Release
+
+如果要打包成 ZIP 檔上傳到 GitHub Release，可以使用以下指令（已自動排除開發用資料夾與 Git 檔案）：
+
+```bash
+zip -r immersivetranslate-notebook.zip . -x "*.git*" -x "*.DS_Store*" -x "tutorial-video/*" -x ".gitignore" -x ".gitattributes" -x "immersivetranslate-notebook.zip"
+```
+
+打包完成後，將 `immersivetranslate-notebook.zip` 上傳至 GitHub Release 即可。
+
+---
+
 ## 使用流程
 
 1. 先安裝並啟用 [Immersive Translate](https://immersivetranslate.com/)
