@@ -467,31 +467,17 @@
       <section id="download">
         <div class="section-header">
           <h2>下載連結</h2>
-          <p>提供原始碼壓縮包、GitHub 倉庫與本地教學影片，方便你快速導入與分享。</p>
+          <p>提供已打包好的 Release 壓縮包，方便你快速安裝與分享。</p>
         </div>
-        <div class="download-grid">
-          <article class="card download-card">
+        <div class="download-grid" style="grid-template-columns: 1fr;">
+          <article class="card download-card" style="align-items: center; text-align: center; min-height: auto; padding: 40px;">
             <div>
-              <h3>下載原始碼 ZIP</h3>
-              <p>直接下載主分支壓縮檔，解壓後即可用 Chrome 載入未封裝項目安裝。</p>
+              <h3 style="font-size: 1.5rem; margin-bottom: 12px;">下載 Release ZIP</h3>
+              <p style="font-size: 1rem; margin-bottom: 24px; max-width: 50ch;">這是已打包好的擴充功能版本，排除了開發用的冗餘檔案，下載並解壓縮後即可直接在 Chrome 中載入安裝。</p>
             </div>
-            <a class="btn" href="https://github.com/Xhinmin/immersivetranslateNotebook/archive/refs/heads/main.zip">下載 main.zip</a>
-          </article>
-
-          <article class="card download-card">
-            <div>
-              <h3>GitHub Repository</h3>
-              <p>查看完整程式碼、README 與後續更新紀錄。</p>
-            </div>
-            <a class="btn" href="https://github.com/Xhinmin/immersivetranslateNotebook">前往 GitHub</a>
-          </article>
-
-          <article class="card download-card">
-            <div>
-              <h3>教學影片（本地）</h3>
-              <p>若要快速理解實際操作流程，可直接播放專案內的示範影片。</p>
-            </div>
-            <a class="btn" href="./tutorial-video/out/immersive-translate-tutorial.mp4">播放教學影片</a>
+            <a class="btn primary" style="padding: 16px 32px; font-size: 1.1rem;" href="./immersivetranslate-notebook.zip">
+              立即下載 immersivetranslate-notebook.zip
+            </a>
           </article>
         </div>
       </section>
