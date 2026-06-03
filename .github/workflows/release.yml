@@ -1,0 +1,67 @@
+name: Build extension release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build extension package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read extension metadata
+        id: metadata
+        shell: bash
+        run: |
+          NAME=$(jq -r '.name' manifest.json | tr '[:upper:] ' '[:lower:]-' | tr -cd '[:alnum:]-_')
+          VERSION=$(jq -r '.version' manifest.json)
+          TAG_NAME="${GITHUB_REF_NAME:-manual-build}"
+          ZIP_NAME="${NAME}-${TAG_NAME}.zip"
+
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Build extension pack
+        shell: bash
+        run: |
+          zip -r "${{ steps.metadata.outputs.zip_name }}" . \
+            -x "*.git*" \
+            -x ".github/*" \
+            -x "*.DS_Store*" \
+            -x "tutorial-video/*" \
+            -x ".gitignore" \
+            -x ".gitattributes" \
+            -x "*.zip" \
+            -x "*.crx" \
+            -x "*.pem"
+
+          unzip -l "${{ steps.metadata.outputs.zip_name }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.tag_name }}
+          path: ${{ steps.metadata.outputs.zip_name }}
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.metadata.outputs.tag_name }}
+          body: |
+            Chrome extension pack for `${{ steps.metadata.outputs.tag_name }}`.
+
+            Extension version: `${{ steps.metadata.outputs.version }}`
+          files: ${{ steps.metadata.outputs.zip_name }}
