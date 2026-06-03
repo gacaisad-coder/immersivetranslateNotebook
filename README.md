@@ -6,11 +6,11 @@ Chrome Extension（Manifest V3），用來擷取沉浸式翻譯在網頁與影�
 
 ## Demo Video
 
-[![Watch the demo video](./tutorial-video/out/preview.png)](https://github.com/Xhinmin/immersivetranslateNotebook/raw/main/tutorial-video/out/immersive-translate-tutorial.mp4)
+[![Watch the demo video](./tutorial-video/out/preview.png)](./tutorial-video/out/immersive-translate-tutorial.mp4)
 
-GitHub README 不支援直接內嵌播放 `<video>`，請點擊上方預覽圖或下方連結觀看影片：
+GitHub README 不支援直接內嵌播放 `<video>`，請點擊上方預覽圖或下方連結到 GitHub 檔案頁觀看影片：
 
-[觀看 Demo Video](https://github.com/Xhinmin/immersivetranslateNotebook/raw/main/tutorial-video/out/immersive-translate-tutorial.mp4)
+[觀看 Demo Video](./tutorial-video/out/immersive-translate-tutorial.mp4)
 
 ---
 
